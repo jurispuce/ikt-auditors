@@ -22,7 +22,7 @@
         "datasource": {"type": "postgres", "uid": "medreg-postgres"},
         "format": "table",
         "rawQuery": true,
-        "rawSql": "SELECT source_system AS metric, count(*)::int AS value FROM audit.events WHERE ($__timeFilter(timestamp_utc)) AND ('$source_system' = 'All' OR source_system IN (${source_system:sqlstring})) GROUP BY 1 ORDER BY 2 DESC"
+        "rawSql": "SELECT source_system AS metric, count(*)::int AS value FROM audit.events WHERE ($__timeFilter(timestamp_utc)) AND source_system IN (${source_system:sqlstring}) GROUP BY 1 ORDER BY 2 DESC"
       }]
     },
     {
@@ -44,7 +44,7 @@
         "datasource": {"type": "postgres", "uid": "medreg-postgres"},
         "format": "time_series",
         "rawQuery": true,
-        "rawSql": "SELECT date_trunc('hour', timestamp_utc) AS time, source_system AS metric, count(*)::int AS value FROM audit.events WHERE ($__timeFilter(timestamp_utc)) AND ('$source_system' = 'All' OR source_system IN (${source_system:sqlstring})) GROUP BY 1, 2 ORDER BY 1"
+        "rawSql": "SELECT date_trunc('hour', timestamp_utc) AS time, source_system AS metric, count(*)::int AS value FROM audit.events WHERE ($__timeFilter(timestamp_utc)) AND source_system IN (${source_system:sqlstring}) GROUP BY 1, 2 ORDER BY 1"
       }]
     },
     {
@@ -72,7 +72,7 @@
         "datasource": {"type": "postgres", "uid": "medreg-postgres"},
         "format": "table",
         "rawQuery": true,
-        "rawSql": "SELECT count(*) FILTER (WHERE result='SUCCESS')::int AS \"SUCCESS\", count(*) FILTER (WHERE result='FAILURE')::int AS \"FAILURE\", count(*) FILTER (WHERE result='ERROR')::int AS \"ERROR\" FROM audit.events WHERE ($__timeFilter(timestamp_utc)) AND ('$source_system' = 'All' OR source_system IN (${source_system:sqlstring}))"
+        "rawSql": "SELECT count(*) FILTER (WHERE result='SUCCESS')::int AS \"SUCCESS\", count(*) FILTER (WHERE result='FAILURE')::int AS \"FAILURE\", count(*) FILTER (WHERE result='ERROR')::int AS \"ERROR\" FROM audit.events WHERE ($__timeFilter(timestamp_utc)) AND source_system IN (${source_system:sqlstring})"
       }]
     },
     {
@@ -88,7 +88,7 @@
         "datasource": {"type": "postgres", "uid": "medreg-postgres"},
         "format": "table",
         "rawQuery": true,
-        "rawSql": "SELECT user_id, count(*)::int AS events FROM audit.events WHERE ($__timeFilter(timestamp_utc)) AND ('$source_system' = 'All' OR source_system IN (${source_system:sqlstring})) GROUP BY 1 ORDER BY 2 DESC LIMIT 15"
+        "rawSql": "SELECT user_id, count(*)::int AS events FROM audit.events WHERE ($__timeFilter(timestamp_utc)) AND source_system IN (${source_system:sqlstring}) GROUP BY 1 ORDER BY 2 DESC LIMIT 15"
       }]
     },
     {
@@ -105,7 +105,7 @@
         "datasource": {"type": "postgres", "uid": "medreg-postgres"},
         "format": "table",
         "rawQuery": true,
-        "rawSql": "SELECT timestamp_utc, user_id, user_ip, source_system, action, result FROM audit.events WHERE action='LOGIN' AND (hour_utc < 6 OR hour_utc > 18) AND ($__timeFilter(timestamp_utc)) AND ('$source_system' = 'All' OR source_system IN (${source_system:sqlstring})) ORDER BY timestamp_utc"
+        "rawSql": "SELECT timestamp_utc, user_id, user_ip, source_system, action, result FROM audit.events WHERE action='LOGIN' AND (hour_utc < 6 OR hour_utc > 18) AND ($__timeFilter(timestamp_utc)) AND source_system IN (${source_system:sqlstring}) ORDER BY timestamp_utc"
       }]
     },
     {
@@ -122,7 +122,7 @@
         "datasource": {"type": "postgres", "uid": "medreg-postgres"},
         "format": "table",
         "rawQuery": true,
-        "rawSql": "SELECT timestamp_utc, user_id, source_system, action, resource, COALESCE((details->>'rows_exported')::int, (details->>'rows_affected')::int) AS rows FROM audit.events WHERE (details ? 'rows_exported' OR details ? 'rows_affected') AND ($__timeFilter(timestamp_utc)) AND ('$source_system' = 'All' OR source_system IN (${source_system:sqlstring})) ORDER BY rows DESC NULLS LAST LIMIT 25"
+        "rawSql": "SELECT timestamp_utc, user_id, source_system, action, resource, COALESCE((details->>'rows_exported')::int, (details->>'rows_affected')::int) AS rows FROM audit.events WHERE (details ? 'rows_exported' OR details ? 'rows_affected') AND ($__timeFilter(timestamp_utc)) AND source_system IN (${source_system:sqlstring}) ORDER BY rows DESC NULLS LAST LIMIT 25"
       }]
     },
     {
@@ -139,7 +139,7 @@
         "datasource": {"type": "postgres", "uid": "medreg-postgres"},
         "format": "table",
         "rawQuery": true,
-        "rawSql": "SELECT timestamp_utc, user_id, user_ip, source_system, action, result FROM audit.events WHERE user_ip IS NOT NULL AND NOT (user_ip << inet '10.0.0.0/8' OR user_ip << inet '192.168.0.0/16') AND ($__timeFilter(timestamp_utc)) AND ('$source_system' = 'All' OR source_system IN (${source_system:sqlstring})) ORDER BY timestamp_utc"
+        "rawSql": "SELECT timestamp_utc, user_id, user_ip, source_system, action, result FROM audit.events WHERE user_ip IS NOT NULL AND NOT (user_ip << inet '10.0.0.0/8' OR user_ip << inet '192.168.0.0/16') AND ($__timeFilter(timestamp_utc)) AND source_system IN (${source_system:sqlstring}) ORDER BY timestamp_utc"
       }]
     },
     {
@@ -156,7 +156,7 @@
         "datasource": {"type": "postgres", "uid": "medreg-postgres"},
         "format": "table",
         "rawQuery": true,
-        "rawSql": "SELECT user_ip, count(*)::int AS failed_logins, count(DISTINCT user_id)::int AS distinct_users, min(timestamp_utc) AS first_seen, max(timestamp_utc) AS last_seen FROM audit.events WHERE action='LOGIN' AND result='FAILURE' AND ($__timeFilter(timestamp_utc)) AND ('$source_system' = 'All' OR source_system IN (${source_system:sqlstring})) GROUP BY user_ip ORDER BY failed_logins DESC"
+        "rawSql": "SELECT user_ip, count(*)::int AS failed_logins, count(DISTINCT user_id)::int AS distinct_users, min(timestamp_utc) AS first_seen, max(timestamp_utc) AS last_seen FROM audit.events WHERE action='LOGIN' AND result='FAILURE' AND ($__timeFilter(timestamp_utc)) AND source_system IN (${source_system:sqlstring}) GROUP BY user_ip ORDER BY failed_logins DESC"
       }]
     },
     {
@@ -189,7 +189,6 @@
         "refresh": 1,
         "multi": true,
         "includeAll": true,
-        "allValue": "All",
         "current": {"selected": true, "text": ["All"], "value": ["$__all"]}
       }
     ]
