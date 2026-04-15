@@ -1,0 +1,5 @@
+# macOS
+.DS_Store
+
+# Teacher-only materials (do not publish)
+input-docs/medreg_audit_logs_GROUND_TRUTH_pasniedzejam.md
