@@ -1,0 +1,103 @@
+name: medreg-audit-demo
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: medreg-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-medreg}
+      POSTGRES_USER:     ${POSTGRES_USER:-medreg}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medreg}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./sql-examples:/sql-examples:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-medreg} -d ${POSTGRES_DB:-medreg}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  loki:
+    image: grafana/loki:3.2.1
+    container_name: medreg-loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/loki-config.yml"]
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki-data:/loki
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  loader:
+    build: ./loader
+    container_name: medreg-loader
+    restart: "no"
+    depends_on:
+      postgres: {condition: service_healthy}
+      loki:     {condition: service_healthy}
+    environment:
+      PG_HOST:     postgres
+      PG_PORT:     "5432"
+      PG_DB:       ${POSTGRES_DB:-medreg}
+      PG_USER:     ${POSTGRES_USER:-medreg}
+      PG_PASSWORD: ${POSTGRES_PASSWORD:-medreg}
+      LOKI_URL:    http://loki:3100
+      DATA_FILE:   /data/medreg_audit_logs.json
+    volumes:
+      - ../input-docs:/data:ro
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: medreg-grafana
+    restart: unless-stopped
+    depends_on:
+      postgres: {condition: service_healthy}
+      loki:     {condition: service_healthy}
+    ports:
+      # GRAFANA_PORT defaults to 0 → Docker assigns a random ephemeral host port
+      # bound to 0.0.0.0 (reachable from the LAN). Set GRAFANA_PORT=3000 in .env
+      # to pin the port.
+      - "${GRAFANA_PORT:-0}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER:     ${GF_SECURITY_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP:     "false"
+      GF_AUTH_ANONYMOUS_ENABLED:  "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: "/var/lib/grafana/dashboards/audit-overview.json"
+      # %(protocol)s %(domain)s %(http_port)s are auto-resolved at request time,
+      # so links work regardless of which random host port was assigned.
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+  adminer:
+    image: adminer:4.8.1-standalone
+    container_name: medreg-adminer
+    restart: unless-stopped
+    depends_on:
+      postgres: {condition: service_healthy}
+    ports:
+      # ADMINER_PORT defaults to 0 → random ephemeral host port on 0.0.0.0.
+      # Set ADMINER_PORT=8080 in .env to pin the port.
+      - "${ADMINER_PORT:-0}:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: nette
+
+volumes:
+  pg-data:
+  loki-data:
+  grafana-data:

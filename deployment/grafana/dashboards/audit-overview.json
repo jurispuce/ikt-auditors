@@ -1,0 +1,204 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Events by source_system",
+      "type": "piechart",
+      "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+      "options": {
+        "legend": {"displayMode": "list", "placement": "right", "showLegend": true, "values": ["value", "percent"]},
+        "pieType": "donut",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "tooltip": {"mode": "single", "sort": "desc"}
+      },
+      "targets": [{
+        "refId": "A",
+        "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+        "format": "table",
+        "rawQuery": true,
+        "rawSql": "SELECT source_system AS metric, count(*)::int AS value FROM audit.events WHERE ($__timeFilter(timestamp_utc)) AND ('$source_system' = 'All' OR source_system IN (${source_system:sqlstring})) GROUP BY 1 ORDER BY 2 DESC"
+      }]
+    },
+    {
+      "id": 2,
+      "title": "Events over time by source_system",
+      "type": "timeseries",
+      "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+      "gridPos": {"h": 8, "w": 16, "x": 8, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "custom": {"drawStyle": "bars", "stacking": {"mode": "normal"}, "lineWidth": 0, "fillOpacity": 100},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi"}},
+      "targets": [{
+        "refId": "A",
+        "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+        "format": "time_series",
+        "rawQuery": true,
+        "rawSql": "SELECT date_trunc('hour', timestamp_utc) AS time, source_system AS metric, count(*)::int AS value FROM audit.events WHERE ($__timeFilter(timestamp_utc)) AND ('$source_system' = 'All' OR source_system IN (${source_system:sqlstring})) GROUP BY 1, 2 ORDER BY 1"
+      }]
+    },
+    {
+      "id": 3,
+      "title": "Result breakdown",
+      "type": "stat",
+      "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+      "gridPos": {"h": 4, "w": 12, "x": 0, "y": 8},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "mappings": [],
+          "unit": "short"
+        },
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "FAILURE"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}]},
+          {"matcher": {"id": "byName", "options": "ERROR"},   "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "orange"}}]},
+          {"matcher": {"id": "byName", "options": "SUCCESS"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "green"}}]}
+        ]
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "horizontal", "textMode": "value_and_name", "colorMode": "background"},
+      "targets": [{
+        "refId": "A",
+        "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+        "format": "table",
+        "rawQuery": true,
+        "rawSql": "SELECT count(*) FILTER (WHERE result='SUCCESS')::int AS \"SUCCESS\", count(*) FILTER (WHERE result='FAILURE')::int AS \"FAILURE\", count(*) FILTER (WHERE result='ERROR')::int AS \"ERROR\" FROM audit.events WHERE ($__timeFilter(timestamp_utc)) AND ('$source_system' = 'All' OR source_system IN (${source_system:sqlstring}))"
+      }]
+    },
+    {
+      "id": 4,
+      "title": "Top 15 users by event count",
+      "type": "barchart",
+      "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "options": {"orientation": "horizontal", "xTickLabelRotation": 0, "stacking": "none", "legend": {"showLegend": false}, "tooltip": {"mode": "single"}},
+      "targets": [{
+        "refId": "A",
+        "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+        "format": "table",
+        "rawQuery": true,
+        "rawSql": "SELECT user_id, count(*)::int AS events FROM audit.events WHERE ($__timeFilter(timestamp_utc)) AND ('$source_system' = 'All' OR source_system IN (${source_system:sqlstring})) GROUP BY 1 ORDER BY 2 DESC LIMIT 15"
+      }]
+    },
+    {
+      "id": 5,
+      "title": "Off-hours LOGINs (UTC hour < 6 or > 18)",
+      "description": "Phase 3 strategy A.3 — events outside business hours.",
+      "type": "table",
+      "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 12},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "options": {"showHeader": true},
+      "targets": [{
+        "refId": "A",
+        "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+        "format": "table",
+        "rawQuery": true,
+        "rawSql": "SELECT timestamp_utc, user_id, user_ip, source_system, action, result FROM audit.events WHERE action='LOGIN' AND (hour_utc < 6 OR hour_utc > 18) AND ($__timeFilter(timestamp_utc)) AND ('$source_system' = 'All' OR source_system IN (${source_system:sqlstring})) ORDER BY timestamp_utc"
+      }]
+    },
+    {
+      "id": 6,
+      "title": "Top exports (rows_exported / rows_affected)",
+      "description": "Phase 3 strategy A.5 — large exports / mass DB ops.",
+      "type": "table",
+      "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 16},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "options": {"showHeader": true},
+      "targets": [{
+        "refId": "A",
+        "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+        "format": "table",
+        "rawQuery": true,
+        "rawSql": "SELECT timestamp_utc, user_id, source_system, action, resource, COALESCE((details->>'rows_exported')::int, (details->>'rows_affected')::int) AS rows FROM audit.events WHERE (details ? 'rows_exported' OR details ? 'rows_affected') AND ($__timeFilter(timestamp_utc)) AND ('$source_system' = 'All' OR source_system IN (${source_system:sqlstring})) ORDER BY rows DESC NULLS LAST LIMIT 25"
+      }]
+    },
+    {
+      "id": 7,
+      "title": "Foreign IPs (NOT 10.0.0.0/8 and NOT 192.168.0.0/16)",
+      "description": "Phase 3 strategy B.4 — external IP addresses.",
+      "type": "table",
+      "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 21},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "options": {"showHeader": true},
+      "targets": [{
+        "refId": "A",
+        "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+        "format": "table",
+        "rawQuery": true,
+        "rawSql": "SELECT timestamp_utc, user_id, user_ip, source_system, action, result FROM audit.events WHERE user_ip IS NOT NULL AND NOT (user_ip << inet '10.0.0.0/8' OR user_ip << inet '192.168.0.0/16') AND ($__timeFilter(timestamp_utc)) AND ('$source_system' = 'All' OR source_system IN (${source_system:sqlstring})) ORDER BY timestamp_utc"
+      }]
+    },
+    {
+      "id": 8,
+      "title": "Failed LOGINs per IP",
+      "description": "Phase 3 strategy A.2 — brute-force / credential stuffing signal.",
+      "type": "table",
+      "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 25},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "options": {"showHeader": true},
+      "targets": [{
+        "refId": "A",
+        "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+        "format": "table",
+        "rawQuery": true,
+        "rawSql": "SELECT user_ip, count(*)::int AS failed_logins, count(DISTINCT user_id)::int AS distinct_users, min(timestamp_utc) AS first_seen, max(timestamp_utc) AS last_seen FROM audit.events WHERE action='LOGIN' AND result='FAILURE' AND ($__timeFilter(timestamp_utc)) AND ('$source_system' = 'All' OR source_system IN (${source_system:sqlstring})) GROUP BY user_ip ORDER BY failed_logins DESC"
+      }]
+    },
+    {
+      "id": 9,
+      "title": "Live log search (Loki)",
+      "description": "LogQL examples: {source_system=\"VDRIS-DB-PROD\"} | json | rows_affected > 100",
+      "type": "logs",
+      "datasource": {"type": "loki", "uid": "medreg-loki"},
+      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 30},
+      "options": {"showTime": true, "wrapLogMessage": true, "enableLogDetails": true, "dedupStrategy": "none", "sortOrder": "Descending"},
+      "targets": [{
+        "refId": "A",
+        "datasource": {"type": "loki", "uid": "medreg-loki"},
+        "expr": "{job=\"medreg-audit-demo\"}",
+        "queryType": "range"
+      }]
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 39,
+  "tags": ["medreg", "audit", "ikt-auditori"],
+  "templating": {
+    "list": [
+      {
+        "name": "source_system",
+        "label": "Source system",
+        "type": "query",
+        "datasource": {"type": "postgres", "uid": "medreg-postgres"},
+        "query": "SELECT DISTINCT source_system FROM audit.events ORDER BY 1",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": "All",
+        "current": {"selected": true, "text": ["All"], "value": ["$__all"]}
+      }
+    ]
+  },
+  "time": {"from": "2026-03-01T00:00:00Z", "to": "2026-04-01T00:00:00Z"},
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "MedReg Audit Overview",
+  "uid": "medreg-audit-overview",
+  "version": 1,
+  "weekStart": ""
+}
